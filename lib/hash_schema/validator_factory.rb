@@ -1,5 +1,7 @@
 require 'set'
 
+require 'hash_schema/validators/hash_validator'
+
 class HashSchema
   class ValidatorFactory
     class InvalidBlueprintError < HashSchema::Error; end
@@ -15,6 +17,8 @@ class HashSchema
         ->(x) { inner_validators.any? { |v| v.call(x) } }
       when Array
         array_validator(blueprint)
+      when Hash
+        HashSchema::Validators::HashValidator.new(blueprint)
       else
         raise InvalidBlueprintError
       end

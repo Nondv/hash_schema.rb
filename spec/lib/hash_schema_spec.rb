@@ -16,15 +16,6 @@ RSpec.describe HashSchema do
     )
   end
 
-  it "is a bit weird for booleans since there's no Bool class in Ruby" do
-    schema = init(b: Set[TrueClass, FalseClass])
-    expect(schema.valid_key?([:b], true)).to be true
-    expect(schema.valid_key?([:b], false)).to be true
-
-    expect(schema.valid_key?([:b], nil)).to be false
-    expect(schema.valid_key?([:b], Object.new)).to be false
-  end
-
   it 'raises exception when something irregular provided' do
     error_class = described_class::InvalidSchemaError
 
@@ -32,49 +23,71 @@ RSpec.describe HashSchema do
     expect { init(key: :int) }.to raise_error(error_class)
   end
 
-  describe '#valid_key?' do
-    it 'is the main method to check validity of an object' do
-      schema = init(x: Integer, y: Set[String, NilClass])
 
-      expect(schema.valid_key?([:x], 123)).to be true
-      expect(schema.valid_key?([:x], nil)).to be false
-      expect(schema.valid_key?([:y], nil)).to be true
+  describe 'basic functionality' do
+    it "is a bit weird for booleans since there's no Bool class in Ruby" do
+      schema = init(b: Set[TrueClass, FalseClass])
+      expect(schema.valid?(b: true)).to be true
+      expect(schema.valid?(b: false)).to be true
+
+      expect(schema.valid?({})).to be false
+      expect(schema.valid?(b: nil)).to be false
+      expect(schema.valid?(b: Object.new)).to be false
     end
 
-    it 'can access nested hashes' do
-      schema = init(x: { y: { z: Set[TrueClass, FalseClass] } })
-
-      expect(schema.valid_key?([:x, :y, :z], false)).to be true
-      expect(schema.valid_key?([:x, :y, :z], nil)).to be false
+    it 'works with arrays' do
+      schema = init(x: [Integer])
+      expect(schema.valid?(x: 123)).to be false
+      expect(schema.valid?(x: [123])).to be true
+      expect(schema.valid?(x: [123.0])).to be false
+      expect(schema.valid?(x: [])).to be true
+      expect(schema.valid?(x: (1..1000).to_a)).to be true
     end
 
-    it 'raises error when accessing key not in schema' do
-      error_class = described_class::KeyNotDefinedError
+    it 'works with complicated arrays' do
+      multiclass = init(x: [Set[Integer, String]])
+      expect(multiclass.valid?(x: [1, 2, 3])).to be true
+      expect(multiclass.valid?(x: %w[1 2 3])).to be true
+      expect(multiclass.valid?(x: [1, '2', 3])).to be true
 
-      schema = init(x: { y: { z: Set[TrueClass, FalseClass] } })
-      expect { schema.valid_key?([:y], 1) }.to raise_error(error_class)
-      expect { schema.valid_key?([:x, :z], 1) }.to raise_error(error_class)
-      expect { schema.valid_key?([:x, :z], 1) }.to raise_error(error_class)
+      arrays = init(x: [[Integer]])
+      expect(arrays.valid?(x: [1, 2, 3])).to be false
+      expect(arrays.valid?(x: [[1, 2, 3]])).to be true
+      expect(arrays.valid?(x: [[1], [2], [3]])).to be true
 
-      expect(schema.valid_key?([:x,:y, :z], true)).to be true
-      expect { schema.valid_key?([:x,:y, :z, :a], 1) }.to raise_error(error_class)
+      hashes = init(x: [{ x: Integer, y: Set[NilClass, String] }])
+      expect(hashes.valid?(x: [])).to be true
+      expect(hashes.valid?(x: [{}])).to be false
+      expect(hashes.valid?(x: [{ x: 1 }])).to be true
+      expect(hashes.valid?(x: [{ x: 1, y: '1' }])).to be true
     end
-  end
 
-  describe '#subschema' do
-    it 'returns subset of schema by key path' do
-      schema = init(x: { y: { z: Set[TrueClass, FalseClass] } })
-      x_sub = schema.subschema([:x])
+    it 'works with sets' do
+      schema = init(x: Set[NilClass, Integer, String])
+      expect(schema.valid?(x: 123)).to be true
+      expect(schema.valid?(x: '123')).to be true
+      expect(schema.valid?(x: nil)).to be true
+      expect(schema.valid?({})).to be true
 
-      expect(x_sub.valid_key?([], y: { z: false })).to be true
-      expect(x_sub.valid_key?([:y], z: false)).to be true
+      expect(schema.valid?(x: :abc)).to be false
+      expect(schema.valid?(x: Set[NilClass, Integer, String])).to be false
+    end
 
-      y_sub = x_sub.subschema([:y])
-      expect(y_sub.valid_key?([], z: false)).to be true
-      expect(y_sub.valid_key?([:z], false)).to be true
+    it 'works with complicated Sets' do
+      schema = init(x: Set[NilClass, { a: Integer }, [Integer]])
 
-      expect(schema.subschema([:x, :y]).valid_key?([:z], false)).to be true
-      expect { schema.subschema([:x, :y, :z]) }.to raise_error(described_class::NotAHashError)
+      expect(schema.valid?({})).to be true
+      expect(schema.valid?(x: nil)).to be true
+      expect(schema.valid?(y: nil)).to be false
+
+      expect(schema.valid?(x: [1, 2, 3])).to be true
+      expect(schema.valid?(x: %w[1 2 3])).to be false
+      expect(schema.valid?(x: [])).to be true
+
+      expect(schema.valid?(x: { a: 123 })).to be true
+      expect(schema.valid?(x: { a: '123' })).to be false
+      expect(schema.valid?(x: { a: 123, b: nil })).to be false
+      expect(schema.valid?(x: { a: nil })).to be false
     end
   end
 end
