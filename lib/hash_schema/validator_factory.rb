@@ -1,6 +1,7 @@
 require 'set'
 
 require 'hash_schema/validators/hash_validator'
+require 'hash_schema/validators/abstract_validator'
 
 class HashSchema
   class ValidatorFactory
@@ -8,7 +9,7 @@ class HashSchema
 
     def build(blueprint)
       case blueprint
-      when Proc
+      when Proc, HashSchema::Validators::AbstractValidator
         blueprint
       when Class
         ->(x) { x.is_a?(blueprint) }

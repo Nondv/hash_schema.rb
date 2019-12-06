@@ -1,6 +1,8 @@
+require_relative 'abstract_validator'
+
 class HashSchema
   module Validators
-    class HashValidator
+    class HashValidator < AbstractValidator
       class KeyDoesntExistError < HashSchema::Error; end
 
       def initialize(blueprint)
@@ -14,10 +16,6 @@ class HashSchema
 
         validators.each { |k, v| return false unless v.call(value[k]) }
         true
-      end
-
-      def to_proc
-        ->(x) { call(x) }
       end
 
       private
