@@ -6,8 +6,15 @@ class HashSchema
   class DSL
     class NoBlockGivenError < HashSchema::Error; end
 
-    def self.build_schema(&block)
-      HashSchema.new(new(&block).result)
+    def self.build_schema(extra_keys_allowed: false, &block)
+      blueprint = new(&block).result
+
+      if extra_keys_allowed
+        validator = HashSchema::Validators::HashSubsetValidator.new(blueprint)
+        HashSchema.new(validator)
+      else
+        HashSchema.new(blueprint)
+      end
     end
 
     attr_reader :result

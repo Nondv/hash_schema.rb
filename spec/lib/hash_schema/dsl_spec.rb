@@ -73,22 +73,39 @@ RSpec.describe HashSchema::DSL do
     ).to be false
   end
 
-  it '#nested(extra_keys_allowed: true)' do
-    schema = described_class.build_schema do |h, dsl|
-      h[:id] = Integer
-      h[:info] = dsl.nested(extra_keys_allowed: true) do |info|
-        info[:name] = String
-        info[:phone] = String
+  describe 'extra_keys_allowed flag' do
+    it 'on top-level' do
+      schema = described_class.build_schema(extra_keys_allowed: true) do |h, dsl|
+        h[:id] = Integer
+        h[:name] = String
       end
+
+      expect(
+        schema.valid?(id: 1, name: 'John', some: { data: true })
+      ).to be true
+
+      expect(
+        schema.valid?(id: 1, some: { data: true })
+      ).to be false
     end
 
-    expect(
-      schema.valid?(id: 1, info: { name: 'John', phone: '+12345', some: { data: true } })
-    ).to be true
+    it '#nested' do
+      schema = described_class.build_schema do |h, dsl|
+        h[:id] = Integer
+        h[:info] = dsl.nested(extra_keys_allowed: true) do |info|
+          info[:name] = String
+          info[:phone] = String
+        end
+      end
 
-    expect(
-      schema.valid?(id: 1, info: { name: 'John', some: { data: true } })
-    ).to be false
+      expect(
+        schema.valid?(id: 1, info: { name: 'John', phone: '+12345', some: { data: true } })
+      ).to be true
+
+      expect(
+        schema.valid?(id: 1, info: { name: 'John', some: { data: true } })
+      ).to be false
+    end
   end
 
   it '#number' do
